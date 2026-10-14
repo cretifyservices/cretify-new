@@ -1,0 +1,6 @@
+{
+  "name": "CRETIFY — Modern Digital Agency",
+  "description": "An independent digital agency crafting modern web applications, digital presence, and automated systems for companies reaching further than before.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

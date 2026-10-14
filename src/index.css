@@ -1,0 +1,153 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --cream: #FFF4E6;
+    --orange: #FF5A00;
+    --ink: #14110F;
+    --violet: #6B4DFF;
+    --sky: #38B6FF;
+    --mint: #27E3A4;
+    --yellow: #FFC72C;
+    --pink: #FF5DA2;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: var(--cream);
+    color: var(--ink);
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+  }
+
+  body {
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+    position: relative;
+    margin: 0;
+    padding: 0;
+  }
+
+  #root {
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+  }
+
+  /* Custom fonts */
+  .font-display {
+    font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+  }
+
+  .font-space {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+  }
+
+  .font-serif-accent {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-style: italic;
+  }
+
+  .font-mono-code {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* Consistent rigid dot matrix background */
+.dot-grid-pattern {
+  background-image: radial-gradient(rgba(20, 17, 15, 0.16) 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
+}
+.dot-grid-pattern-dark {
+  background-image: radial-gradient(rgba(255, 244, 230, 0.14) 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
+}
+
+/* Custom Utilities for Neo-Brutal & Glass craft */
+.shadow-brutal-sm {
+  box-shadow: 2px 2px 0 #14110F;
+}
+.shadow-brutal {
+  box-shadow: 4px 4px 0 #14110F;
+}
+.shadow-brutal-lg {
+  box-shadow: 6px 6px 0 #14110F;
+}
+.shadow-brutal-orange {
+  box-shadow: 4px 4px 0 #FF5A00;
+}
+.shadow-brutal-white {
+  box-shadow: 4px 4px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* Text outline effects */
+.text-outline-ink {
+  -webkit-text-stroke: 1.5px #14110F;
+  color: transparent;
+}
+.text-outline-white {
+  -webkit-text-stroke: 1.5px #FFF4E6;
+  color: transparent;
+}
+.text-outline-orange {
+  -webkit-text-stroke: 1.5px #FF5A00;
+  color: transparent;
+}
+
+/* Gradient mesh background */
+.bg-mesh-glow {
+  background: radial-gradient(circle at 20% 30%, rgba(255, 90, 0, 0.18) 0%, transparent 60%),
+              radial-gradient(circle at 80% 20%, rgba(107, 77, 255, 0.16) 0%, transparent 60%),
+              radial-gradient(circle at 50% 80%, rgba(255, 93, 162, 0.15) 0%, transparent 60%);
+}
+
+.bg-mesh-dark {
+  background: radial-gradient(circle at 20% 20%, rgba(255, 90, 0, 0.22) 0%, transparent 50%),
+              radial-gradient(circle at 80% 60%, rgba(107, 77, 255, 0.22) 0%, transparent 50%),
+              radial-gradient(circle at 40% 90%, rgba(39, 227, 164, 0.18) 0%, transparent 50%);
+}
+
+/* Film grain effect */
+.film-grain {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
+}
+
+/* Marquee infinite scroll */
+@keyframes marquee-left {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes marquee-right {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0%); }
+}
+
+.animate-marquee-left {
+  display: flex;
+  width: max-content;
+  animation: marquee-left 24s linear infinite;
+}
+
+.animate-marquee-right {
+  display: flex;
+  width: max-content;
+  animation: marquee-right 24s linear infinite;
+}
+
+.animate-marquee-left:hover,
+.animate-marquee-right:hover {
+  animation-play-state: paused;
+}
+
+/* Hide scrollbars for clean galleries */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
