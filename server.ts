@@ -27,19 +27,11 @@ interface StoreData {
   inquiries: any[];
 }
 
-// Initial seed data with desktop view images
+// Initial seed data using project's actual images
 const SEED_PROJECTS = DEFAULT_PROJECTS.map((p, idx) => {
-  const sampleImages = [
-    'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80',
-    'https://images.unsplash.com/photo-1642543492481-44e81e3914a7?auto=format&fit=crop&w=1200&q=80',
-    'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=1200&q=80',
-    'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
-    'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1200&q=80',
-    'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80'
-  ];
   return {
     ...p,
-    imageUrl: sampleImages[idx % sampleImages.length]
+    imageUrl: p.imageUrl || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80'
   };
 });
 

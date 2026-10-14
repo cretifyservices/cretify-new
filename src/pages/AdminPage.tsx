@@ -148,7 +148,7 @@ export const AdminPage: React.FC = () => {
     playPop();
     setEditingProject({
       name: '',
-      year: new Date().getFullYear().toString(),
+      year: '',
       client: '',
       category: 'Web apps',
       tagline: '',
@@ -248,7 +248,7 @@ export const AdminPage: React.FC = () => {
         const normalized: Project[] = list.map((item, idx) => ({
           id: item.id || `proj-imp-${Date.now()}-${idx}`,
           name: item.name || 'Untitled Project',
-          year: item.year || new Date().getFullYear().toString(),
+          year: item.year || '',
           client: item.client || 'Client',
           category: item.category || 'Web development',
           tagline: item.tagline || '',
@@ -693,7 +693,7 @@ export const AdminPage: React.FC = () => {
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <span className="font-mono text-[11px] text-[#14110F]/60">
-                          {proj.client} · {proj.year}
+                          {proj.client ? `${proj.client} · ` : ''}{proj.category}
                         </span>
                         <h3 className="font-display font-black text-xl text-[#14110F]">
                           {proj.name}
@@ -951,16 +951,6 @@ export const AdminPage: React.FC = () => {
                       value={editingProject.client || ''}
                       onChange={(e) => setEditingProject({ ...editingProject, client: e.target.value })}
                       placeholder="e.g. Lumina Roasters Inc."
-                      className="px-3.5 py-2.5 rounded-xl border-2 border-[#14110F] bg-white font-space text-sm"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="font-mono text-xs font-bold">Year</label>
-                    <input
-                      type="text"
-                      value={editingProject.year || '2025'}
-                      onChange={(e) => setEditingProject({ ...editingProject, year: e.target.value })}
                       className="px-3.5 py-2.5 rounded-xl border-2 border-[#14110F] bg-white font-space text-sm"
                     />
                   </div>

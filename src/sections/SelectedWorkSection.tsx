@@ -187,7 +187,7 @@ export const SelectedWorkSection: React.FC = () => {
                 <div>
                   <div className="flex items-center justify-between text-xs font-mono text-[#FFF4E6]/60 mb-1">
                     <span>{project.client}</span>
-                    <span className="font-bold text-[#FF5A00]">{project.year}</span>
+                    <span className="font-bold text-[#FF5A00]">{project.category}</span>
                   </div>
                   <h3 className="font-display text-xl sm:text-2xl font-black text-[#FFF4E6] group-hover:text-[#FF5A00] transition-colors flex items-center justify-between">
                     <span>{project.name}</span>

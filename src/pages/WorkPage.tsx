@@ -145,7 +145,7 @@ export const WorkPage: React.FC = () => {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <span className="font-mono text-xs text-[#14110F]/60 block mb-1">
-                        {project.client} · {project.year}
+                        {project.client ? `${project.client} · ` : ''}{project.category}
                       </span>
                       <h3 className="font-display text-2xl font-black text-[#14110F] group-hover:text-[#FF5A00] transition-colors">
                         {project.name}
@@ -232,10 +232,12 @@ export const WorkPage: React.FC = () => {
               <div className="flex flex-col gap-8">
                 <div>
                   <div className="flex items-center gap-2 text-xs font-mono text-[#14110F]/60 mb-2">
-                    <span>{activeModalProject.client}</span>
-                    <span>·</span>
-                    <span>{activeModalProject.year}</span>
-                    <span>·</span>
+                    {activeModalProject.client && (
+                      <>
+                        <span>{activeModalProject.client}</span>
+                        <span>·</span>
+                      </>
+                    )}
                     <span className="font-bold text-[#FF5A00]">{activeModalProject.category}</span>
                   </div>
                   <h2 className="font-display text-4xl sm:text-5xl font-black text-[#14110F] tracking-tight">

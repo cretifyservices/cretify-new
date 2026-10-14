@@ -1,7 +1,7 @@
 export interface Project {
   id: string;
   name: string;
-  year: string;
+  year?: string;
   client: string;
   category: 'E-commerce' | 'Web apps' | 'Landing pages' | 'Branding' | 'Video' | 'AI Automation';
   tagline: string;
