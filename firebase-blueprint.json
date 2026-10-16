@@ -1,0 +1,70 @@
+{
+  "entities": {
+    "Project": {
+      "title": "Project",
+      "description": "Portfolio work, case study, and live web product",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique slug identifier" },
+        "name": { "type": "string", "description": "Project title" },
+        "client": { "type": "string", "description": "Client or brand name" },
+        "category": { "type": "string", "description": "Category (e.g. Web apps, E-commerce, Branding)" },
+        "tagline": { "type": "string", "description": "Short marketing headline" },
+        "description": { "type": "string", "description": "Detailed project description" },
+        "deliverables": { "type": "array", "description": "Scope deliverable list" },
+        "metrics": { "type": "string", "description": "Key milestone or impact metric" },
+        "gradient": { "type": "string", "description": "Fallback gradient styling" },
+        "imageUrl": { "type": "string", "description": "Screenshot or preview image URL" },
+        "liveUrl": { "type": "string", "description": "Live production or staging URL" },
+        "featuredOnHome": { "type": "boolean", "description": "Whether displayed on home page" }
+      },
+      "required": ["id", "name", "client", "category"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Client testimonial or feedback entry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique review identifier" },
+        "clientName": { "type": "string", "description": "Client name" },
+        "role": { "type": "string", "description": "Client title or role" },
+        "company": { "type": "string", "description": "Company or venture name" },
+        "channel": { "type": "string", "description": "Communication channel (e.g. WhatsApp, Instagram)" },
+        "time": { "type": "string", "description": "Timestamp or relative date" },
+        "message": { "type": "string", "description": "Review text" },
+        "rating": { "type": "number", "description": "Star rating out of 5" },
+        "avatarColor": { "type": "string", "description": "Avatar bubble accent color" }
+      },
+      "required": ["id", "clientName", "message"]
+    },
+    "Inquiry": {
+      "title": "Inquiry",
+      "description": "Incoming project inquiry submitted by prospective clients",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique inquiry identifier" },
+        "name": { "type": "string", "description": "Prospective client name" },
+        "email": { "type": "string", "description": "Contact email" },
+        "budget": { "type": "string", "description": "Estimated budget tier" },
+        "message": { "type": "string", "description": "Project brief and details" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of submission" },
+        "status": { "type": "string", "description": "Lead status (e.g. new, contacted, archived)" }
+      },
+      "required": ["email", "message"]
+    }
+  },
+  "firestore": {
+    "/projects/{projectId}": {
+      "schema": "Project",
+      "description": "All public portfolio works and case studies"
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "All public client testimonials and reviews"
+    },
+    "/inquiries/{inquiryId}": {
+      "schema": "Inquiry",
+      "description": "Customer contact form and project inquiries"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "summary": "Implementation plan to migrate the admin storage layer from local git-tracked files to Firebase Firestore, ensuring that reviews, works, and inquiries persist permanently across GitHub pushes and Hostinger redeployments.",
+  "updatedAt": "2026-10-16T12:05:29.378726241Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

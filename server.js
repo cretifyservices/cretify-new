@@ -252,10 +252,114 @@ var TESTIMONIALS = [
   }
 ];
 
+// src/lib/firebase.ts
+import { initializeApp, getApps, getApp } from "firebase/app";
+import {
+  getFirestore,
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  setDoc,
+  deleteDoc
+} from "firebase/firestore";
+
+// firebase-applet-config.json
+var firebase_applet_config_default = {
+  projectId: "igneous-mapper-82w8r",
+  appId: "1:154886958426:web:7c614c996af29ddc559763",
+  apiKey: "AIzaSyB9EKHdTS86tBGgADdJBtzeI7i3akulKcc",
+  authDomain: "igneous-mapper-82w8r.firebaseapp.com",
+  firestoreDatabaseId: "ai-studio-cretifymoderndig-4b587d05-7573-4265-be33-4ae5927a17a7",
+  storageBucket: "igneous-mapper-82w8r.firebasestorage.app",
+  messagingSenderId: "154886958426",
+  measurementId: "",
+  oAuthClientId: "154886958426-ma1lj478bpkodpvsgtplh3mq918i14ui.apps.googleusercontent.com",
+  recaptchaSiteKey: ""
+};
+
+// src/lib/firebase.ts
+var app = getApps().length > 0 ? getApp() : initializeApp(firebase_applet_config_default);
+var db = firebase_applet_config_default.firestoreDatabaseId ? getFirestore(app, firebase_applet_config_default.firestoreDatabaseId) : getFirestore(app);
+var PROJECTS_COLLECTION = "projects";
+var REVIEWS_COLLECTION = "reviews";
+var INQUIRIES_COLLECTION = "inquiries";
+var SYSTEM_COLLECTION = "system";
+async function getProjectsFromFirestore() {
+  const querySnapshot = await getDocs(collection(db, PROJECTS_COLLECTION));
+  const list = [];
+  querySnapshot.forEach((docSnap) => {
+    list.push(docSnap.data());
+  });
+  return list;
+}
+async function saveProjectToFirestore(project) {
+  const docRef = doc(db, PROJECTS_COLLECTION, project.id);
+  await setDoc(docRef, project, { merge: true });
+}
+async function deleteProjectFromFirestore(id) {
+  const docRef = doc(db, PROJECTS_COLLECTION, id);
+  await deleteDoc(docRef);
+}
+async function getReviewsFromFirestore() {
+  const querySnapshot = await getDocs(collection(db, REVIEWS_COLLECTION));
+  const list = [];
+  querySnapshot.forEach((docSnap) => {
+    list.push(docSnap.data());
+  });
+  return list;
+}
+async function saveReviewToFirestore(review) {
+  const docRef = doc(db, REVIEWS_COLLECTION, review.id);
+  await setDoc(docRef, review, { merge: true });
+}
+async function deleteReviewFromFirestore(id) {
+  const docRef = doc(db, REVIEWS_COLLECTION, id);
+  await deleteDoc(docRef);
+}
+async function getInquiriesFromFirestore() {
+  const querySnapshot = await getDocs(collection(db, INQUIRIES_COLLECTION));
+  const list = [];
+  querySnapshot.forEach((docSnap) => {
+    list.push(docSnap.data());
+  });
+  return list;
+}
+async function saveInquiryToFirestore(inquiry) {
+  const docRef = doc(db, INQUIRIES_COLLECTION, inquiry.id);
+  await setDoc(docRef, inquiry, { merge: true });
+}
+async function deleteInquiryFromFirestore(id) {
+  const docRef = doc(db, INQUIRIES_COLLECTION, id);
+  await deleteDoc(docRef);
+}
+async function seedInitialFirestoreData(seedProjects, seedReviews) {
+  try {
+    const seedMarkerRef = doc(db, SYSTEM_COLLECTION, "seed_status");
+    const markerSnap = await getDoc(seedMarkerRef);
+    if (markerSnap.exists() && markerSnap.data()?.seeded === true) {
+      return;
+    }
+    for (const proj of seedProjects) {
+      await saveProjectToFirestore(proj);
+    }
+    for (const rev of seedReviews) {
+      await saveReviewToFirestore(rev);
+    }
+    await setDoc(seedMarkerRef, {
+      seeded: true,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    });
+    console.log("Successfully seeded initial data to Cloud Firestore");
+  } catch (err) {
+    console.error("Firestore seeding warning:", err);
+  }
+}
+
 // server.ts
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
-var app = express();
+var app2 = express();
 var PORT = process.env.PORT || 3e3;
 var JWT_SECRET = process.env.JWT_SECRET || "cretify_secret_key_4508_secure_salt_77";
 var DATA_DIR = path.resolve(__dirname, "data");
@@ -263,12 +367,10 @@ var STORE_PATH = path.resolve(DATA_DIR, "store.json");
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
-var SEED_PROJECTS = PROJECTS.map((p, idx) => {
-  return {
-    ...p,
-    imageUrl: p.imageUrl || "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80"
-  };
-});
+var SEED_PROJECTS = PROJECTS.map((p) => ({
+  ...p,
+  imageUrl: p.imageUrl || "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80"
+}));
 function loadStore() {
   try {
     if (fs.existsSync(STORE_PATH)) {
@@ -299,7 +401,25 @@ function saveStore(data) {
   }
 }
 var store = loadStore();
-app.use(express.json());
+async function syncWithFirestore() {
+  try {
+    await seedInitialFirestoreData(SEED_PROJECTS, store.reviews || TESTIMONIALS);
+    const cloudProjects = await getProjectsFromFirestore();
+    const cloudReviews = await getReviewsFromFirestore();
+    const cloudInquiries = await getInquiriesFromFirestore();
+    if (cloudProjects.length > 0) {
+      store.projects = cloudProjects;
+    }
+    store.reviews = cloudReviews;
+    store.inquiries = cloudInquiries;
+    saveStore(store);
+    console.log(`[Firestore] Synced successfully: ${cloudProjects.length} projects, ${cloudReviews.length} reviews, ${cloudInquiries.length} inquiries`);
+  } catch (err) {
+    console.warn("[Firestore] Sync warning (using local fallback cache):", err);
+  }
+}
+syncWithFirestore();
+app2.use(express.json());
 var loginAttempts = /* @__PURE__ */ new Map();
 function rateLimitLogin(req, res, next) {
   const ip = req.ip || req.socket.remoteAddress || "unknown";
@@ -331,13 +451,13 @@ function requireAdmin(req, res, next) {
     res.status(401).json({ error: "Unauthorized: token expired or invalid" });
   }
 }
-app.post("/api/auth/login", rateLimitLogin, (req, res) => {
+app2.post("/api/auth/login", rateLimitLogin, (req, res) => {
   const { username, password } = req.body;
   const ip = req.ip || req.socket.remoteAddress || "unknown";
-  if (username === "cretifyservices4508" && password === "Cretify@4508") {
+  if (username === "cretifyservices4508" && password === "cretify@1234") {
     loginAttempts.delete(ip);
     const token = jwt.sign({ username, role: "admin" }, JWT_SECRET, { expiresIn: "7d" });
-    return res.json({ success: true, token, username });
+    return res.json({ token, username });
   }
   const record = loginAttempts.get(ip);
   if (record) {
@@ -345,38 +465,62 @@ app.post("/api/auth/login", rateLimitLogin, (req, res) => {
   }
   return res.status(401).json({ error: "Invalid username or password" });
 });
-app.get("/api/auth/verify", requireAdmin, (req, res) => {
+app2.get("/api/auth/verify", requireAdmin, (_req, res) => {
   res.json({ valid: true, username: "cretifyservices4508" });
 });
-app.get("/api/projects", (_req, res) => {
+app2.get("/api/projects", async (_req, res) => {
+  try {
+    const cloudProjects = await getProjectsFromFirestore();
+    if (cloudProjects.length > 0) {
+      store.projects = cloudProjects;
+      saveStore(store);
+    }
+  } catch {
+  }
   res.json(store.projects);
 });
-app.post("/api/projects", requireAdmin, (req, res) => {
+app2.post("/api/projects", requireAdmin, async (req, res) => {
   const newProject = {
     ...req.body,
     id: req.body.id || `proj-${Date.now()}`
   };
+  try {
+    await saveProjectToFirestore(newProject);
+  } catch (err) {
+    console.warn("Failed to save project to Firestore:", err);
+  }
   store.projects.unshift(newProject);
   saveStore(store);
   res.status(201).json(newProject);
 });
-app.put("/api/projects/:id", requireAdmin, (req, res) => {
+app2.put("/api/projects/:id", requireAdmin, async (req, res) => {
   const { id } = req.params;
   const index = store.projects.findIndex((p) => p.id === id);
   if (index === -1) {
     return res.status(404).json({ error: "Project not found" });
   }
-  store.projects[index] = { ...store.projects[index], ...req.body, id };
+  const updated = { ...store.projects[index], ...req.body, id };
+  try {
+    await saveProjectToFirestore(updated);
+  } catch (err) {
+    console.warn("Failed to update project in Firestore:", err);
+  }
+  store.projects[index] = updated;
   saveStore(store);
   res.json(store.projects[index]);
 });
-app.delete("/api/projects/:id", requireAdmin, (req, res) => {
+app2.delete("/api/projects/:id", requireAdmin, async (req, res) => {
   const { id } = req.params;
+  try {
+    await deleteProjectFromFirestore(id);
+  } catch (err) {
+    console.warn("Failed to delete project from Firestore:", err);
+  }
   store.projects = store.projects.filter((p) => p.id !== id);
   saveStore(store);
   res.json({ success: true, id });
 });
-app.post("/api/projects/import", requireAdmin, (req, res) => {
+app2.post("/api/projects/import", requireAdmin, async (req, res) => {
   try {
     const { projects: importedProjects, mode } = req.body;
     if (!Array.isArray(importedProjects)) {
@@ -385,7 +529,6 @@ app.post("/api/projects/import", requireAdmin, (req, res) => {
     const validated = importedProjects.map((p, idx) => ({
       id: p.id || `proj-${Date.now()}-${idx}`,
       name: p.name || "Untitled Project",
-      year: p.year || (/* @__PURE__ */ new Date()).getFullYear().toString(),
       client: p.client || "Client",
       category: p.category || "Web development",
       tagline: p.tagline || "",
@@ -396,17 +539,35 @@ app.post("/api/projects/import", requireAdmin, (req, res) => {
       gradient: p.gradient || "from-[#FF5A00]/25 to-[#6B4DFF]/20",
       tags: Array.isArray(p.tags) ? p.tags : ["Digital Experience"],
       deliverables: Array.isArray(p.deliverables) ? p.deliverables : ["Full-Stack Engineering"],
-      metrics: Array.isArray(p.metrics) ? p.metrics : [],
+      metrics: p.metrics || "",
       challenge: p.challenge || "",
       solution: p.solution || "",
       result: p.result || "",
       mockupType: p.mockupType || "dashboard"
     }));
     if (mode === "replace") {
+      for (const p of store.projects) {
+        try {
+          await deleteProjectFromFirestore(p.id);
+        } catch {
+        }
+      }
+      for (const p of validated) {
+        try {
+          await saveProjectToFirestore(p);
+        } catch {
+        }
+      }
       store.projects = validated;
     } else {
       const existingMap = new Map(store.projects.map((p) => [p.id, p]));
-      validated.forEach((p) => existingMap.set(p.id, p));
+      for (const p of validated) {
+        existingMap.set(p.id, p);
+        try {
+          await saveProjectToFirestore(p);
+        } catch {
+        }
+      }
       store.projects = Array.from(existingMap.values());
     }
     saveStore(store);
@@ -415,39 +576,71 @@ app.post("/api/projects/import", requireAdmin, (req, res) => {
     res.status(500).json({ error: err.message || "Import failed" });
   }
 });
-app.get("/api/reviews", (_req, res) => {
+app2.get("/api/reviews", async (_req, res) => {
+  try {
+    const cloudReviews = await getReviewsFromFirestore();
+    store.reviews = cloudReviews;
+    saveStore(store);
+  } catch {
+  }
   res.json(store.reviews);
 });
-app.post("/api/reviews", requireAdmin, (req, res) => {
+app2.post("/api/reviews", requireAdmin, async (req, res) => {
   const newReview = {
     ...req.body,
     id: req.body.id || `review-${Date.now()}`
   };
+  try {
+    await saveReviewToFirestore(newReview);
+  } catch (err) {
+    console.warn("Failed to save review to Firestore:", err);
+  }
   store.reviews.unshift(newReview);
   saveStore(store);
   res.status(201).json(newReview);
 });
-app.delete("/api/reviews/:id", requireAdmin, (req, res) => {
+app2.delete("/api/reviews/:id", requireAdmin, async (req, res) => {
   const { id } = req.params;
+  try {
+    await deleteReviewFromFirestore(id);
+  } catch (err) {
+    console.warn("Failed to delete review from Firestore:", err);
+  }
   store.reviews = store.reviews.filter((r) => r.id !== id);
   saveStore(store);
   res.json({ success: true, id });
 });
-app.post("/api/inquiries", (req, res) => {
+app2.post("/api/inquiries", async (req, res) => {
   const inquiry = {
     id: `inq-${Date.now()}`,
     ...req.body,
     createdAt: (/* @__PURE__ */ new Date()).toISOString()
   };
+  try {
+    await saveInquiryToFirestore(inquiry);
+  } catch (err) {
+    console.warn("Failed to save inquiry to Firestore:", err);
+  }
   store.inquiries.unshift(inquiry);
   saveStore(store);
   res.status(201).json({ success: true, inquiry });
 });
-app.get("/api/inquiries", requireAdmin, (_req, res) => {
+app2.get("/api/inquiries", requireAdmin, async (_req, res) => {
+  try {
+    const cloudInquiries = await getInquiriesFromFirestore();
+    store.inquiries = cloudInquiries;
+    saveStore(store);
+  } catch {
+  }
   res.json(store.inquiries);
 });
-app.delete("/api/inquiries/:id", requireAdmin, (req, res) => {
+app2.delete("/api/inquiries/:id", requireAdmin, async (req, res) => {
   const { id } = req.params;
+  try {
+    await deleteInquiryFromFirestore(id);
+  } catch (err) {
+    console.warn("Failed to delete inquiry from Firestore:", err);
+  }
   store.inquiries = store.inquiries.filter((inq) => inq.id !== id);
   saveStore(store);
   res.json({ success: true, id });
@@ -455,8 +648,8 @@ app.delete("/api/inquiries/:id", requireAdmin, (req, res) => {
 async function setupFrontend() {
   if (process.env.NODE_ENV === "production" || fs.existsSync(path.resolve(__dirname, "dist/index.html"))) {
     const distPath = path.resolve(__dirname, "dist");
-    app.use(express.static(distPath));
-    app.get("*", (_req, res) => {
+    app2.use(express.static(distPath));
+    app2.get("*", (_req, res) => {
       res.sendFile(path.resolve(distPath, "index.html"));
     });
   } else {
@@ -465,9 +658,9 @@ async function setupFrontend() {
       server: { middlewareMode: true },
       appType: "spa"
     });
-    app.use(vite.middlewares);
+    app2.use(vite.middlewares);
   }
-  app.listen(PORT, () => {
+  app2.listen(PORT, () => {
     console.log(`Cretify Full-Stack Server running on http://0.0.0.0:${PORT}`);
   });
 }

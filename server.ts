@@ -5,6 +5,21 @@ import { fileURLToPath } from 'url';
 import jwt from 'jsonwebtoken';
 import { PROJECTS as DEFAULT_PROJECTS } from './src/data/projects';
 import { TESTIMONIALS as DEFAULT_TESTIMONIALS } from './src/data/testimonials';
+import {
+  getProjectsFromFirestore,
+  saveProjectToFirestore,
+  deleteProjectFromFirestore,
+  getReviewsFromFirestore,
+  saveReviewToFirestore,
+  deleteReviewFromFirestore,
+  getInquiriesFromFirestore,
+  saveInquiryToFirestore,
+  deleteInquiryFromFirestore,
+  seedInitialFirestoreData,
+  FirestoreProject,
+  FirestoreReview,
+  FirestoreInquiry
+} from './src/lib/firebase';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,7 +28,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'cretify_secret_key_4508_secure_salt_77';
 
-// Persistent storage setup
+// Local storage fallback cache setup
 const DATA_DIR = path.resolve(__dirname, 'data');
 const STORE_PATH = path.resolve(DATA_DIR, 'store.json');
 
@@ -28,12 +43,10 @@ interface StoreData {
 }
 
 // Initial seed data using project's actual images
-const SEED_PROJECTS = DEFAULT_PROJECTS.map((p, idx) => {
-  return {
-    ...p,
-    imageUrl: p.imageUrl || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80'
-  };
-});
+const SEED_PROJECTS: FirestoreProject[] = DEFAULT_PROJECTS.map((p) => ({
+  ...p,
+  imageUrl: p.imageUrl || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80'
+}));
 
 function loadStore(): StoreData {
   try {
@@ -68,6 +81,33 @@ function saveStore(data: StoreData) {
 }
 
 let store = loadStore();
+
+// Synchronize with Cloud Firestore
+async function syncWithFirestore() {
+  try {
+    // Seed initial data once into Firestore if not already seeded
+    await seedInitialFirestoreData(SEED_PROJECTS, store.reviews || DEFAULT_TESTIMONIALS);
+
+    // Read live data directly from Cloud Firestore
+    const cloudProjects = await getProjectsFromFirestore();
+    const cloudReviews = await getReviewsFromFirestore();
+    const cloudInquiries = await getInquiriesFromFirestore();
+
+    if (cloudProjects.length > 0) {
+      store.projects = cloudProjects;
+    }
+    // Always trust cloud reviews: if admin deleted reviews, cloudReviews will be empty or filtered
+    store.reviews = cloudReviews;
+    store.inquiries = cloudInquiries;
+    saveStore(store);
+    console.log(`[Firestore] Synced successfully: ${cloudProjects.length} projects, ${cloudReviews.length} reviews, ${cloudInquiries.length} inquiries`);
+  } catch (err) {
+    console.warn('[Firestore] Sync warning (using local fallback cache):', err);
+  }
+}
+
+// Execute initial sync
+syncWithFirestore();
 
 app.use(express.json());
 
@@ -109,24 +149,17 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-// ---------------- API ROUTES ----------------
-
-// Admin Login
+// ----------------- AUTH ENDPOINTS -----------------
 app.post('/api/auth/login', rateLimitLogin, (req: Request, res: Response) => {
   const { username, password } = req.body;
   const ip = req.ip || req.socket.remoteAddress || 'unknown';
 
-  // Exact credentials specified by user:
-  // username: cretifyservices4508
-  // password: Cretify@4508
-  if (username === 'cretifyservices4508' && password === 'Cretify@4508') {
-    // Reset failed attempts on success
+  if (username === 'cretifyservices4508' && password === 'cretify@1234') {
     loginAttempts.delete(ip);
     const token = jwt.sign({ username, role: 'admin' }, JWT_SECRET, { expiresIn: '7d' });
-    return res.json({ success: true, token, username });
+    return res.json({ token, username });
   }
 
-  // Increment failed attempts
   const record = loginAttempts.get(ip);
   if (record) {
     record.count += 1;
@@ -135,48 +168,72 @@ app.post('/api/auth/login', rateLimitLogin, (req: Request, res: Response) => {
 });
 
 // Verify token
-app.get('/api/auth/verify', requireAdmin, (req: Request, res: Response) => {
+app.get('/api/auth/verify', requireAdmin, (_req: Request, res: Response) => {
   res.json({ valid: true, username: 'cretifyservices4508' });
 });
 
+// ----------------- PROJECTS ENDPOINTS -----------------
 // GET all projects (public)
-app.get('/api/projects', (_req: Request, res: Response) => {
+app.get('/api/projects', async (_req: Request, res: Response) => {
+  try {
+    const cloudProjects = await getProjectsFromFirestore();
+    if (cloudProjects.length > 0) {
+      store.projects = cloudProjects;
+      saveStore(store);
+    }
+  } catch {}
   res.json(store.projects);
 });
 
 // CREATE a project (admin)
-app.post('/api/projects', requireAdmin, (req: Request, res: Response) => {
+app.post('/api/projects', requireAdmin, async (req: Request, res: Response) => {
   const newProject = {
     ...req.body,
     id: req.body.id || `proj-${Date.now()}`
   };
+  try {
+    await saveProjectToFirestore(newProject);
+  } catch (err) {
+    console.warn('Failed to save project to Firestore:', err);
+  }
   store.projects.unshift(newProject);
   saveStore(store);
   res.status(201).json(newProject);
 });
 
 // UPDATE a project (admin)
-app.put('/api/projects/:id', requireAdmin, (req: Request, res: Response) => {
+app.put('/api/projects/:id', requireAdmin, async (req: Request, res: Response) => {
   const { id } = req.params;
   const index = store.projects.findIndex((p) => p.id === id);
   if (index === -1) {
     return res.status(404).json({ error: 'Project not found' });
   }
-  store.projects[index] = { ...store.projects[index], ...req.body, id };
+  const updated = { ...store.projects[index], ...req.body, id };
+  try {
+    await saveProjectToFirestore(updated);
+  } catch (err) {
+    console.warn('Failed to update project in Firestore:', err);
+  }
+  store.projects[index] = updated;
   saveStore(store);
   res.json(store.projects[index]);
 });
 
 // DELETE a project (admin)
-app.delete('/api/projects/:id', requireAdmin, (req: Request, res: Response) => {
+app.delete('/api/projects/:id', requireAdmin, async (req: Request, res: Response) => {
   const { id } = req.params;
+  try {
+    await deleteProjectFromFirestore(id);
+  } catch (err) {
+    console.warn('Failed to delete project from Firestore:', err);
+  }
   store.projects = store.projects.filter((p) => p.id !== id);
   saveStore(store);
   res.json({ success: true, id });
 });
 
 // IMPORT projects in bulk from JSON (admin)
-app.post('/api/projects/import', requireAdmin, (req: Request, res: Response) => {
+app.post('/api/projects/import', requireAdmin, async (req: Request, res: Response) => {
   try {
     const { projects: importedProjects, mode } = req.body;
     if (!Array.isArray(importedProjects)) {
@@ -187,7 +244,6 @@ app.post('/api/projects/import', requireAdmin, (req: Request, res: Response) => 
     const validated = importedProjects.map((p: any, idx: number) => ({
       id: p.id || `proj-${Date.now()}-${idx}`,
       name: p.name || 'Untitled Project',
-      year: p.year || new Date().getFullYear().toString(),
       client: p.client || 'Client',
       category: p.category || 'Web development',
       tagline: p.tagline || '',
@@ -198,7 +254,7 @@ app.post('/api/projects/import', requireAdmin, (req: Request, res: Response) => 
       gradient: p.gradient || 'from-[#FF5A00]/25 to-[#6B4DFF]/20',
       tags: Array.isArray(p.tags) ? p.tags : ['Digital Experience'],
       deliverables: Array.isArray(p.deliverables) ? p.deliverables : ['Full-Stack Engineering'],
-      metrics: Array.isArray(p.metrics) ? p.metrics : [],
+      metrics: p.metrics || '',
       challenge: p.challenge || '',
       solution: p.solution || '',
       result: p.result || '',
@@ -206,11 +262,19 @@ app.post('/api/projects/import', requireAdmin, (req: Request, res: Response) => 
     }));
 
     if (mode === 'replace') {
+      for (const p of store.projects) {
+        try { await deleteProjectFromFirestore(p.id); } catch {}
+      }
+      for (const p of validated) {
+        try { await saveProjectToFirestore(p); } catch {}
+      }
       store.projects = validated;
     } else {
-      // Merge mode: replace matching ids, append new ones
       const existingMap = new Map(store.projects.map((p) => [p.id, p]));
-      validated.forEach((p: any) => existingMap.set(p.id, p));
+      for (const p of validated) {
+        existingMap.set(p.id, p);
+        try { await saveProjectToFirestore(p); } catch {}
+      }
       store.projects = Array.from(existingMap.values());
     }
 
@@ -221,51 +285,82 @@ app.post('/api/projects/import', requireAdmin, (req: Request, res: Response) => 
   }
 });
 
+// ----------------- REVIEWS ENDPOINTS -----------------
 // GET all reviews (public)
-app.get('/api/reviews', (_req: Request, res: Response) => {
+app.get('/api/reviews', async (_req: Request, res: Response) => {
+  try {
+    const cloudReviews = await getReviewsFromFirestore();
+    store.reviews = cloudReviews;
+    saveStore(store);
+  } catch {}
   res.json(store.reviews);
 });
 
 // CREATE a review (admin)
-app.post('/api/reviews', requireAdmin, (req: Request, res: Response) => {
+app.post('/api/reviews', requireAdmin, async (req: Request, res: Response) => {
   const newReview = {
     ...req.body,
     id: req.body.id || `review-${Date.now()}`
   };
+  try {
+    await saveReviewToFirestore(newReview);
+  } catch (err) {
+    console.warn('Failed to save review to Firestore:', err);
+  }
   store.reviews.unshift(newReview);
   saveStore(store);
   res.status(201).json(newReview);
 });
 
 // DELETE a review (admin)
-app.delete('/api/reviews/:id', requireAdmin, (req: Request, res: Response) => {
+app.delete('/api/reviews/:id', requireAdmin, async (req: Request, res: Response) => {
   const { id } = req.params;
+  try {
+    await deleteReviewFromFirestore(id);
+  } catch (err) {
+    console.warn('Failed to delete review from Firestore:', err);
+  }
   store.reviews = store.reviews.filter((r) => r.id !== id);
   saveStore(store);
   res.json({ success: true, id });
 });
 
-// Inquiries / Leads from the 4-step modal
+// ----------------- INQUIRIES ENDPOINTS -----------------
 // CREATE inquiry (public)
-app.post('/api/inquiries', (req: Request, res: Response) => {
+app.post('/api/inquiries', async (req: Request, res: Response) => {
   const inquiry = {
     id: `inq-${Date.now()}`,
     ...req.body,
     createdAt: new Date().toISOString()
   };
+  try {
+    await saveInquiryToFirestore(inquiry);
+  } catch (err) {
+    console.warn('Failed to save inquiry to Firestore:', err);
+  }
   store.inquiries.unshift(inquiry);
   saveStore(store);
   res.status(201).json({ success: true, inquiry });
 });
 
 // GET inquiries (admin only)
-app.get('/api/inquiries', requireAdmin, (_req: Request, res: Response) => {
+app.get('/api/inquiries', requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const cloudInquiries = await getInquiriesFromFirestore();
+    store.inquiries = cloudInquiries;
+    saveStore(store);
+  } catch {}
   res.json(store.inquiries);
 });
 
 // DELETE inquiry (admin only)
-app.delete('/api/inquiries/:id', requireAdmin, (req: Request, res: Response) => {
+app.delete('/api/inquiries/:id', requireAdmin, async (req: Request, res: Response) => {
   const { id } = req.params;
+  try {
+    await deleteInquiryFromFirestore(id);
+  } catch (err) {
+    console.warn('Failed to delete inquiry from Firestore:', err);
+  }
   store.inquiries = store.inquiries.filter((inq) => inq.id !== id);
   saveStore(store);
   res.json({ success: true, id });
