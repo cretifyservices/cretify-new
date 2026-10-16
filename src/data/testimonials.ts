@@ -68,7 +68,7 @@ export const AGENCY_STATS = [
 export const FAQS = [
   {
     question: 'How long does a website take to design and launch?',
-    answer: 'Most custom websites and landing pages launch within 2 to 3 weeks. Complex web apps and SaaS MVPs typically take 4 to 6 weeks. We work in rapid, weekly sprints with live staging links so you see tangible progress every few days.'
+    answer: 'For landing pages, delivery typically takes 2 to 3 days, and for complex web apps, it takes 3 to 4 weeks. We work in rapid sprints with live staging links so you see tangible progress every few days.'
   },
   {
     question: 'What do you need from us before starting?',

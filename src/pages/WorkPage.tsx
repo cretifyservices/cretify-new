@@ -8,7 +8,6 @@ import { useSound } from '../context/SoundContext';
 import { useStartProjectModal } from '../context/StartProjectModalContext';
 
 export const WorkPage: React.FC = () => {
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [activeModalProject, setActiveModalProject] = useState<Project | null>(null);
   const [projects, setProjects] = useState<Project[]>(STATIC_PROJECTS);
   const { playPop, playSnap } = useSound();
@@ -27,12 +26,6 @@ export const WorkPage: React.FC = () => {
       })
       .catch(() => {});
   }, []);
-
-  const categories = ['All', 'Web apps', 'E-commerce', 'Branding', 'AI Automation'];
-
-  const filteredProjects = selectedCategory === 'All'
-    ? projects
-    : projects.filter((p) => p.category === selectedCategory);
 
   const openProjectModal = (proj: Project) => {
     playPop();
@@ -63,37 +56,13 @@ export const WorkPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Filter Chips (Interactive functional buttons) */}
-        <div className="flex flex-wrap items-center justify-center gap-2 mb-14">
-          {categories.map((cat) => {
-            const isActive = selectedCategory === cat;
-            return (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => {
-                  playSnap();
-                  setSelectedCategory(cat);
-                }}
-                className={`px-5 py-2.5 rounded-full font-display font-bold text-xs uppercase tracking-wide border-2 transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-[#14110F] text-[#FFF4E6] border-[#14110F] shadow-brutal-sm'
-                    : 'bg-white text-[#14110F] border-[#14110F]/20 hover:border-[#14110F]'
-                }`}
-              >
-                {cat}
-              </button>
-            );
-          })}
-        </div>
-
         {/* Projects Grid: Adjusted desktop aspect ratio */}
         <motion.div
           layout
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
         >
           <AnimatePresence>
-            {filteredProjects.map((project) => (
+            {projects.map((project) => (
               <motion.div
                 key={project.id}
                 layout
