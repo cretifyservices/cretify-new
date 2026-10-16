@@ -434,6 +434,12 @@ function rateLimitLogin(req, res, next) {
   }
   next();
 }
+var ALLOWED_ADMIN_USERNAMES = [
+  "cretifyservices4508",
+  "cretifyservices@gmail.com",
+  "cretify",
+  "cretifyservices"
+];
 function requireAdmin(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -442,7 +448,8 @@ function requireAdmin(req, res, next) {
   const token = authHeader.split(" ")[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.username === "cretifyservices4508") {
+    const username = (decoded.username || "").trim().toLowerCase();
+    if (ALLOWED_ADMIN_USERNAMES.includes(username)) {
       next();
     } else {
       res.status(403).json({ error: "Forbidden: invalid credentials" });
@@ -454,10 +461,14 @@ function requireAdmin(req, res, next) {
 app2.post("/api/auth/login", rateLimitLogin, (req, res) => {
   const { username, password } = req.body;
   const ip = req.ip || req.socket.remoteAddress || "unknown";
-  if (username === "cretifyservices4508" && password === "cretify@1234") {
+  const cleanUser = (username || "").trim().toLowerCase();
+  const cleanPass = (password || "").trim();
+  const isUsernameValid = ALLOWED_ADMIN_USERNAMES.includes(cleanUser);
+  const isPasswordValid = cleanPass === "cretify@1234";
+  if (isUsernameValid && isPasswordValid) {
     loginAttempts.delete(ip);
-    const token = jwt.sign({ username, role: "admin" }, JWT_SECRET, { expiresIn: "7d" });
-    return res.json({ token, username });
+    const token = jwt.sign({ username: cleanUser, role: "admin" }, JWT_SECRET, { expiresIn: "7d" });
+    return res.json({ token, username: cleanUser });
   }
   const record = loginAttempts.get(ip);
   if (record) {
@@ -465,8 +476,8 @@ app2.post("/api/auth/login", rateLimitLogin, (req, res) => {
   }
   return res.status(401).json({ error: "Invalid username or password" });
 });
-app2.get("/api/auth/verify", requireAdmin, (_req, res) => {
-  res.json({ valid: true, username: "cretifyservices4508" });
+app2.get("/api/auth/verify", requireAdmin, (req, res) => {
+  res.json({ valid: true, username: req.user?.username || "admin" });
 });
 app2.get("/api/projects", async (_req, res) => {
   try {

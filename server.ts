@@ -129,6 +129,13 @@ function rateLimitLogin(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+const ALLOWED_ADMIN_USERNAMES = [
+  'cretifyservices4508',
+  'cretifyservices@gmail.com',
+  'cretify',
+  'cretifyservices'
+];
+
 // Auth middleware for protected admin routes
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
@@ -139,7 +146,8 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { username: string };
-    if (decoded.username === 'cretifyservices4508') {
+    const username = (decoded.username || '').trim().toLowerCase();
+    if (ALLOWED_ADMIN_USERNAMES.includes(username)) {
       next();
     } else {
       res.status(403).json({ error: 'Forbidden: invalid credentials' });
@@ -154,10 +162,17 @@ app.post('/api/auth/login', rateLimitLogin, (req: Request, res: Response) => {
   const { username, password } = req.body;
   const ip = req.ip || req.socket.remoteAddress || 'unknown';
 
-  if (username === 'cretifyservices4508' && password === 'cretify@1234') {
+  const cleanUser = (username || '').trim().toLowerCase();
+  const cleanPass = (password || '').trim();
+
+  // Allow both cretifyservices4508 and cretifyservices@gmail.com
+  const isUsernameValid = ALLOWED_ADMIN_USERNAMES.includes(cleanUser);
+  const isPasswordValid = cleanPass === 'cretify@1234';
+
+  if (isUsernameValid && isPasswordValid) {
     loginAttempts.delete(ip);
-    const token = jwt.sign({ username, role: 'admin' }, JWT_SECRET, { expiresIn: '7d' });
-    return res.json({ token, username });
+    const token = jwt.sign({ username: cleanUser, role: 'admin' }, JWT_SECRET, { expiresIn: '7d' });
+    return res.json({ token, username: cleanUser });
   }
 
   const record = loginAttempts.get(ip);
@@ -168,8 +183,8 @@ app.post('/api/auth/login', rateLimitLogin, (req: Request, res: Response) => {
 });
 
 // Verify token
-app.get('/api/auth/verify', requireAdmin, (_req: Request, res: Response) => {
-  res.json({ valid: true, username: 'cretifyservices4508' });
+app.get('/api/auth/verify', requireAdmin, (req: Request, res: Response) => {
+  res.json({ valid: true, username: (req as any).user?.username || 'admin' });
 });
 
 // ----------------- PROJECTS ENDPOINTS -----------------

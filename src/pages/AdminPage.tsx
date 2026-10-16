@@ -112,7 +112,7 @@ export const AdminPage: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username: usernameInput.trim(),
-          password: passwordInput
+          password: passwordInput.trim()
         })
       });
 
@@ -459,7 +459,7 @@ export const AdminPage: React.FC = () => {
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <label className="font-mono text-xs font-bold text-[#14110F]/80">
-                Username
+                Username or Admin Email
               </label>
               <input
                 type="text"
@@ -467,7 +467,7 @@ export const AdminPage: React.FC = () => {
                 autoFocus
                 value={usernameInput}
                 onChange={(e) => setUsernameInput(e.target.value)}
-                placeholder="Enter username"
+                placeholder="cretifyservices4508 or cretifyservices@gmail.com"
                 className="w-full px-4 py-3.5 rounded-xl border-2 border-[#14110F] bg-[#FFF4E6]/50 focus:bg-white focus:outline-none focus:border-[#FF5A00] font-mono text-sm text-[#14110F] shadow-inner"
               />
             </div>

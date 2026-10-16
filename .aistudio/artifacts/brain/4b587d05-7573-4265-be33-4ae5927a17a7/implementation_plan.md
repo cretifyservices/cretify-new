@@ -1,81 +1,65 @@
-# Implementation Plan: Cloud Database Persistence with Firebase Firestore
+# Implementation Plan: Admin Login Resolution & Multi-Identifier Access
 
-Resolve data loss during GitHub pushes and redeployments by migrating from a git-tracked local JSON file to a cloud persistent **Firebase Firestore** database. All admin updates, additions, and deletions (works, reviews, inquiries) will live permanently in the cloud and never be overwritten by git commits, branch checkouts, or server rebuilds.
+Enable flexible admin login by supporting both `cretifyservices4508` and `cretifyservices@gmail.com`, clear any IP rate-limiting lockout, and ensure input sanitization and token validation accept both identifiers.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Cloud Database Provisioning**:
-> In accordance with your choice, we will provision Firebase Firestore. Once you approve this plan, the Firebase setup UI will be prompted for one-click authorization.
-> - **Initial Data Migration**: All 8 migrated live projects from `cretify.in/work` and your current reviews will be seeded into Firestore on initial setup.
-> - **Permanent Persistence**: Any subsequent additions, updates, or deletions made in the Admin Portal will write directly to Firestore in the cloud. Pushing code updates to GitHub or redeploying will **never** reset or recover deleted fake reviews.
+> **Admin Credentials Configuration**:
+> - **Accepted Usernames**: Both `cretifyservices4508` and `cretifyservices@gmail.com` (case-insensitive & whitespace trimmed).
+> - **Default Password**: `cretify@1234` (if you were using a different password previously, please let us know in feedback or we can accept your preferred password).
+> - **Rate Limit Reset**: All temporary IP lockouts will be flushed so you can log in immediately without waiting.
 
 ---
 
 ## Architecture & Data Flow
 
 ```
-[Admin Portal / UI] 
+[Admin Login Form]
        │
-       ▼
-[Express Server API / Firestore SDK]
+       ▼ (Username trimmed & lowercase normalized)
+[POST /api/auth/login]
        │
-       ├──► Read & Write directly to Cloud Firestore Collections:
-       │      • /projects (all case studies & client works)
-       │      • /reviews (client reviews & testimonials)
-       │      • /inquiries (lead contact submissions)
+       ├── Check: username in ['cretifyservices4508', 'cretifyservices@gmail.com']
+       │   AND password === 'cretify@1234'
        │
-       └──► Local fallback cache (prevents downtime if offline)
+       ├── Valid: Issue signed 7-day JWT with { username, role: 'admin' }
+       │   Flush login attempt counters
+       │
+       └── Invalid: Return clear error message with attempt countdown
 ```
-
-1. **Collections Schema**:
-   - `projects`: Document ID matches project ID (e.g. `shrungar-ornament`, `alfa-bakery`), contains full project details, tags, live URLs, deliverables.
-   - `reviews`: Document ID matches review ID (e.g. `dm-1`), contains client name, role, company, message, rating, avatar color.
-   - `inquiries`: Document ID auto-generated timestamped ID, contains contact leads and messages.
-
-2. **Server API Update**:
-   - `/api/projects` (GET, POST, PUT, DELETE): reads from and writes to Firestore.
-   - `/api/reviews` (GET, POST, PUT, DELETE): reads from and writes to Firestore.
-   - `/api/inquiries` (GET, POST, DELETE): reads from and writes to Firestore.
-
-3. **Client-side Resiliency**:
-   - `TestimonialsSection.tsx`: ensure that when `/api/reviews` returns an empty array (if all reviews are deleted), it clears state instead of keeping dummy fallback reviews.
 
 ---
 
 ## Proposed Changes
 
-### 1. Database Provisioning & Firebase SDK
-- Provision Firestore using the `firebase_setup` UI.
-- Create `firebase-blueprint.json` and `firestore.rules` securing collections (public read for projects and reviews; admin write; public create for contact inquiries).
-- Configure Firebase SDK on the server with environment configuration.
+### 1. Backend Authentication (`server.ts`)
+- Update `/api/auth/login` to validate against an allowed username set:
+  - `cretifyservices4508`
+  - `cretifyservices@gmail.com`
+- Normalize username inputs (`username.trim().toLowerCase()`) to prevent trailing spaces or mobile keyboard autocapitalization from causing authentication failures.
+- Update `requireAdmin` middleware to accept tokens issued to either `cretifyservices4508` or `cretifyservices@gmail.com`.
+- Reset in-memory rate-limiter map so current IP blocks are cleared immediately.
 
-### 2. Initial Cloud Seeding (One-Time)
-- Implement auto-migration script that transfers current authentic works (`src/data/projects.ts`) and current reviews into Firestore on initial launch if collections are empty.
-- Ensure that once seeded, Firestore is the sole authority—git commits to source files will no longer reset live data.
-
-### 3. Server Endpoints Refactoring (`server.ts`)
-- Refactor Express routes (`/api/projects`, `/api/reviews`, `/api/inquiries`) to interface directly with Firestore.
-- Keep in-memory/file fallback for offline/development resilience.
-
-### 4. Frontend Fallback Hardening (`TestimonialsSection.tsx` & `WorkPage.tsx`)
-- Update `TestimonialsSection.tsx` so that empty review lists (`[]`) returned from the database correctly render empty or an inviting "Submit a review" card rather than falling back to fake dummy testimonials.
+### 2. Frontend Admin Page (`src/pages/AdminPage.tsx`)
+- Ensure username and password input handlers apply `.trim()` when submitting credentials.
+- Add an informational badge on the login screen showing accepted formats (`cretifyservices4508` or `cretifyservices@gmail.com`) for clarity.
 
 ---
 
 ## Verification Plan
 
 ### Automated & Build Checks
-- Run `compile_applet` and `lint_applet` to ensure TypeScript compilation without errors.
-- Run `npm run build` to confirm production client and server bundles build cleanly.
+- Run `compile_applet` and `lint_applet` to confirm zero TypeScript errors.
+- Run `npm run build` to update production bundles.
 
-### Manual Verification Flows
-1. **Admin Portal Review Deletion & Creation**:
-   - Open `/admin` and log in.
-   - Delete a review or update review text.
-   - Confirm changes reflect immediately on `/` and `/api/reviews`.
-2. **Persistence Test**:
-   - Restart the server process (`restart_dev_server`).
-   - Query `/api/reviews` and confirm the deleted reviews **do not** return.
-3. **Project Management Test**:
-   - Confirm all 8 migrated works appear and edit successfully in `/admin`.
+### Manual Verification
+1. **API Auth Test**:
+   - Test login with `cretifyservices4508` and verify JWT return.
+   - Test login with `cretifyservices@gmail.com` and verify JWT return.
+   - Test protected endpoint `/api/auth/verify` with returned tokens.
+2. **Admin Portal UI**:
+   - Access `/admin` in the browser.
+   - Log in with `cretifyservices4508` and `cretify@1234`.
+   - Log out and log in with `cretifyservices@gmail.com` and `cretify@1234`.
+   - Verify full access to works, reviews, and inquiries.
